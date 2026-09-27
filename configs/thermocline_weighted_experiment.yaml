@@ -1,0 +1,99 @@
+# ==============================================================================
+# EXPERIMENT: THERMOCLINE-AWARE RETRAINING FROM EPOCH-1 WEIGHTS
+# ==============================================================================
+experiment_name: thermocline_weighted_direct_from_epoch1
+model_type: upgraded
+prediction_mode: direct
+source_checkpoint: checkpoints/epoch1_anomaly_pretrain.pt
+
+# Data directories
+data_dir: /Users/parvninama/Programs/SIH/dsvit_ocean/bob_ocean_dataset_2years/samples_monthly
+regrid_dir: /Users/parvninama/Programs/SIH/dsvit_ocean/bob_ocean_dataset_2years/regridded_monthly
+argo_dir: /Users/parvninama/Programs/SIH/dsvit_ocean/argo_test_bob_2years
+results_dir: results/thermocline_weighted_direct_from_epoch1
+checkpoints_dir: checkpoints/thermocline_weighted_direct_from_epoch1
+logs_dir: logs/thermocline_weighted_direct_from_epoch1
+
+# Climatology completely disabled for direct mode
+climatology_path: checkpoints/climatology.npz
+use_climatology: false
+
+# Model Architecture (Transferred from Epoch 1)
+embed_dim: 128
+covariance_rank: 3
+latent_spatial: 6
+
+spatial_n_layers: 3
+spatial_n_heads: 4
+spatial_mlp_ratio: 2.0
+spatial_dropout: 0.10
+
+vertical_n_layers: 2
+vertical_n_heads: 4
+vertical_mlp_ratio: 2.0
+vertical_dropout: 0.10
+
+use_inception_encoder: true
+use_reconstruction: true
+use_geographic_encoding: true
+use_seasonal_encoding: true
+use_vertical_attention: true
+use_anomaly_target: false
+use_correlated_uncertainty: true
+use_gradient_loss: true
+
+# Loss Weighting Configuration (Thermocline-Aware)
+lambda_temperature: 1.0
+lambda_gradient: 0.30
+lambda_reconstruction: 0.10
+lambda_uncertainty: 0.10
+huber_delta: 1.0
+
+# 15 Depth-Specific Weights for Huber & Gradient Loss
+loss:
+  depth_weights:
+    "0": 1.00
+    "5": 1.00
+    "10": 1.00
+    "20": 1.00
+    "30": 1.10
+    "50": 1.50
+    "75": 2.00
+    "100": 2.00
+    "125": 1.75
+    "150": 1.75
+    "200": 1.25
+    "300": 1.00
+    "500": 1.00
+    "700": 1.00
+    "1000": 1.00
+
+# Early Stopping based strictly on Argo Development set
+early_stopping:
+  monitor: argo_dev_rmse
+  mode: min
+  patience: 3
+  min_delta: 0.005
+
+# Training Hyperparameters
+seed: 42
+batch_size: 32
+num_epochs: 15
+learning_rate: 0.0001
+weight_decay: 0.0001
+warmup_ratio: 0.05
+optimizer: adamw
+scheduler: cosine
+grad_clip: 1.0
+num_workers: 4
+
+train_frac: 0.81
+val_frac: 0.09
+test_frac: 0.10
+accum_steps: 1
+
+device: auto
+fp16: false
+pin_memory: false
+plot_every_n_epochs: 1
+log_shape_check: false

@@ -1,0 +1,15 @@
+model_type: upgraded
+argo_dir: /Users/parvninama/Programs/SIH/dsvit_ocean/argo_test_bob_2years
+regrid_dir: /Users/parvninama/Programs/SIH/dsvit_ocean/bob_ocean_dataset_2years/regridded_monthly
+climatology_path: checkpoints/climatology.npz
+results_dir: results/argo_test
+checkpoint_path: checkpoints/best.pt
+
+embed_dim: 128
+covariance_rank: 3
+patch_size: 11
+target_depths: [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000]
+
+max_spatial_dist_km: 30.0
+max_temporal_diff_hours: 36.0
+device: auto

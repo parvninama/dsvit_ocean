@@ -1,0 +1,47 @@
+# ==============================================================================
+# .gitignore - Ocean Temperature Reconstruction Project
+# ==============================================================================
+
+# --- Large Datasets & NetCDF/HDF5 Ocean Observations ---
+bob_ocean_dataset_2years/
+argo_test_bob_2years/
+north_indian_ocean_5years/
+*.nc
+*.h5
+*.hdf5
+*.zip
+*.tar
+*.tar.gz
+*.gz
+
+# --- NumPy Array Caches ---
+*.npy
+*.npz
+
+# --- Experiment Outputs, Results & Logs ---
+results/
+logs/
+*.log
+
+# --- Python Environment & Bytecode Caches ---
+.venv/
+venv/
+env/
+myenv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- IDE & OS System Artifacts ---
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

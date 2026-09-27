@@ -1,0 +1,59 @@
+model_type: upgraded
+data_dir: /Users/parvninama/Programs/SIH/dsvit_ocean/bob_ocean_dataset_2years/samples_monthly
+results_dir: results
+checkpoints_dir: checkpoints
+logs_dir: logs
+climatology_path: checkpoints/climatology.npz
+
+embed_dim: 128
+covariance_rank: 3
+latent_spatial: 6
+
+spatial_n_layers: 3
+spatial_n_heads: 4
+spatial_mlp_ratio: 2.0
+spatial_dropout: 0.10
+
+vertical_n_layers: 2
+vertical_n_heads: 4
+vertical_mlp_ratio: 2.0
+vertical_dropout: 0.10
+
+lambda_anomaly: 1.0
+lambda_absolute: 0.5
+lambda_reconstruction: 0.10
+lambda_gradient: 0.10
+lambda_uncertainty: 0.10
+huber_delta: 1.0
+
+use_inception_encoder: true
+use_reconstruction: true
+use_geographic_encoding: true
+use_seasonal_encoding: true
+use_vertical_attention: true
+use_anomaly_target: true
+use_correlated_uncertainty: true
+use_gradient_loss: true
+
+seed: 42
+batch_size: 32
+num_epochs: 50
+learning_rate: 0.0001
+weight_decay: 0.0001
+warmup_ratio: 0.05
+optimizer: adamw
+scheduler: cosine
+grad_clip: 1.0
+num_workers: 4
+early_stop_patience: 8
+
+train_frac: 0.81
+val_frac: 0.09
+test_frac: 0.10
+accum_steps: 1
+
+device: auto
+fp16: false
+pin_memory: false
+plot_every_n_epochs: 1
+log_shape_check: false

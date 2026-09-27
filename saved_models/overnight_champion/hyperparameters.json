@@ -1,0 +1,74 @@
+{
+  "model_identifier": "trial_20_transformer_3_vertical_layers",
+  "checkpoint_file": "saved_models/overnight_champion/model.pt",
+  "objective": "Thermocline-Aware Retraining with Enhanced Vertical Coupling",
+  "independent_argo_test_rmse": 0.8626,
+  "thermocline_50_150m_rmse": 1.2652,
+  "thermocline_75_150m_rmse": 1.3060,
+  "systematic_bias": 0.2270,
+  "pearson_correlation": 0.9944,
+  "training_hyperparameters": {
+    "optimizer": "adamw",
+    "learning_rate": 7.0e-5,
+    "weight_decay": 1.0e-4,
+    "scheduler": "cosine",
+    "scheduler_eta_min": 7.0e-7,
+    "warmup_ratio": 0.05,
+    "batch_size": 32,
+    "grad_clip": 1.0,
+    "num_epochs": 15,
+    "prediction_mode": "direct"
+  },
+  "early_stopping_hyperparameters": {
+    "monitor": "argo_dev_rmse",
+    "argo_val_interval": 200,
+    "argo_patience": 5,
+    "argo_min_delta": 0.001
+  },
+  "loss_function_weights": {
+    "lambda_temperature": 1.0,
+    "lambda_gradient": 0.45,
+    "lambda_reconstruction": 0.10,
+    "lambda_uncertainty": 0.10,
+    "huber_delta": 1.0
+  },
+  "depth_loss_weights": {
+    "0m": 1.0,
+    "5m": 1.0,
+    "10m": 1.0,
+    "20m": 1.0,
+    "30m": 1.1,
+    "50m": 1.8,
+    "75m": 3.5,
+    "100m": 3.5,
+    "125m": 2.2,
+    "150m": 1.8,
+    "200m": 1.2,
+    "300m": 1.0,
+    "500m": 1.0,
+    "700m": 1.0,
+    "1000m": 1.0
+  },
+  "architecture_hyperparameters": {
+    "embed_dim": 128,
+    "latent_spatial": 6,
+    "spatial_transformer": {
+      "layers": 3,
+      "heads": 4,
+      "mlp_ratio": 2.0,
+      "dropout": 0.10
+    },
+    "vertical_transformer": {
+      "layers": 3,
+      "heads": 4,
+      "mlp_ratio": 2.0,
+      "dropout": 0.10,
+      "notes": "Expanded to 3 layers (up from 2) to deeply capture inter-depth vertical heat stratification"
+    },
+    "cnn_encoder": {
+      "channels": [32, 64, 96],
+      "downsample_kernel_size": 3
+    },
+    "covariance_rank": 3
+  }
+}

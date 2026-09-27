@@ -1,0 +1,99 @@
+# ==============================================================================
+# CONFIGURATION: OVERNIGHT CHAMPION MODEL (TRIAL 20)
+# Achieved 0.8626 °C RMSE on Untouched Argo Final Test Set
+# ==============================================================================
+experiment_name: champion_transformer_3_vertical_layers
+model_type: upgraded
+prediction_mode: direct
+source_checkpoint: saved_models/anomaly_pretrained/model.pt
+
+# Data paths
+data_dir: /Users/parvninama/Programs/SIH/dsvit_ocean/bob_ocean_dataset_2years/samples_monthly
+regrid_dir: /Users/parvninama/Programs/SIH/dsvit_ocean/bob_ocean_dataset_2years/regridded_monthly
+argo_dir: /Users/parvninama/Programs/SIH/dsvit_ocean/argo_test_bob_2years
+results_dir: results/champion_model
+checkpoints_dir: checkpoints/champion_model
+
+# Direct mode (Fourier Climatology disabled)
+climatology_path: checkpoints/climatology.npz
+use_climatology: false
+
+# Model Architecture
+embed_dim: 128
+covariance_rank: 3
+latent_spatial: 6
+
+# Spatial Vision Transformer
+spatial_n_layers: 3
+spatial_n_heads: 4
+spatial_mlp_ratio: 2.0
+spatial_dropout: 0.10
+
+# Vertical Transformer (Winning Breakthrough: 3 layers)
+vertical_n_layers: 3
+vertical_n_heads: 4
+vertical_mlp_ratio: 2.0
+vertical_dropout: 0.10
+
+# CNN Encoder & Decoder
+use_inception_encoder: true
+use_reconstruction: true
+cnn_channels: [32, 64, 96]
+cnn_kernel_size: 3
+
+# Encodings
+use_geographic_encoding: true
+use_seasonal_encoding: true
+use_vertical_attention: true
+use_anomaly_target: false
+use_correlated_uncertainty: true
+use_gradient_loss: true
+
+# Loss Weights (Thermocline-Aware)
+lambda_temperature: 1.0
+lambda_gradient: 0.45
+lambda_reconstruction: 0.10
+lambda_uncertainty: 0.10
+huber_delta: 1.0
+
+# Peak Thermocline Depth Weights
+loss:
+  depth_weights:
+    "0": 1.0
+    "5": 1.0
+    "10": 1.0
+    "20": 1.0
+    "30": 1.1
+    "50": 1.8
+    "75": 3.5
+    "100": 3.5
+    "125": 2.2
+    "150": 1.8
+    "200": 1.2
+    "300": 1.0
+    "500": 1.0
+    "700": 1.0
+    "1000": 1.0
+
+# Training Hyperparameters
+seed: 42
+batch_size: 32
+num_epochs: 15
+learning_rate: 0.00007
+weight_decay: 0.0001
+warmup_ratio: 0.05
+optimizer: adamw
+scheduler: cosine
+grad_clip: 1.0
+num_workers: 4
+
+train_frac: 0.81
+val_frac: 0.09
+test_frac: 0.10
+accum_steps: 1
+device: auto
+
+# Intra-Epoch Early Stopping on Argo Dev Set
+argo_val_interval: 200
+argo_patience: 5
+argo_min_delta: 0.001

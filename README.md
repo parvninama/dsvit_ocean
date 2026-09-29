@@ -20,17 +20,23 @@ That failure is not a bug to be fixed with more epochs or a bigger batch size; i
 
 ## The approach
 
-Do not treat depth levels as independent regression targets. Model vertical coupling directly and enforce stratification physics.
+Do not treat depth levels as independent regression targets. Model vertical coupling directly, enforce stratification physics, and preserve surface spatial features via decoupled representation learning.
 
-A dual-backbone neural architecture pairs multi-scale horizontal spatial awareness with a physics-enforced vertical profile transformer:
-1. **Multi-Scale Inception Spatial Stem:** Parallel $3 \times 3$, $5 \times 5$, and $7 \times 7$ convolutions capture local eddy shears, frontal filaments, and divergence zones simultaneously, avoiding single-scale receptive field bias.
-2. **Spatial Vision Transformer (ViT):** 3 self-attention layers with 4 heads model non-local baroclinic Rossby wave and Kelvin wave teleconnections across the Bay of Bengal ($11 \times 11$ surface patches).
-3. **Vertical Profile Transformer (VPT):** Instead of an unconstrained dense layer outputting 15 numbers, 15 stratified depth queries attend to the latent spatial representations through 3 cross-attention layers, explicitly modeling how heat cascades down the water column.
+A decoupled dual-path architecture pairs multi-scale horizontal spatial awareness with a physics-enforced vertical profile transformer and a separate reconstruction decoder:
+
+1. **Multi-Scale Inception Spatial Stem:** Parallel $3 \times 3$, $5 \times 5$, and $7 \times 7$ convolutions capture local eddy shears, frontal filaments, and divergence zones simultaneously, avoiding single-scale receptive field bias across the $11 \times 11$ surface patches.
+2. **Decoupled Architecture Paths (Branching after Inception Stem):**
+   - **Path A — Main Deep Transformer Path (Subsurface Profile Reconstruction):**
+     - **Spatial Vision Transformer (ViT):** 3 self-attention layers with 4 heads model non-local baroclinic Rossby wave and Kelvin wave teleconnections across the Bay of Bengal ($11 \times 11$ tokens infused with 2D spatial and continuous spherical harmonic geographic encodings).
+     - **Vertical Profile Transformer (VPT):** Instead of an unconstrained dense layer outputting 15 numbers, 15 stratified depth queries attend to the latent spatial representations through 3 cross-attention layers, explicitly modeling how heat cascades down the water column.
+   - **Path B — Decoder Path:**
+     - Connects as a separate path from the transformer path directly after the Multi-Scale Inception Stem to output the **reconstructed variables** ($11 \times 11$ surface fields: SST, SSS, SLA, $U_{\text{curr}}$, $V_{\text{curr}}$, $U_{\text{wind}}$, $V_{\text{wind}}$) and compute the **reconstruction error** ($\mathcal{L}_{\text{rec}}$).
 
 Around that sits a physics-informed loss formulation and validation framework that reality guarantees:
 - **Thermocline-Aware Depth Weighting:** A non-uniform depth loss profile boosts loss penalties by up to **3.5× between 75 m and 100 m**, preventing the network from trading off thermocline accuracy for cheap, easy gains in the quiescent deep ocean (300–1000 m).
 - **Physics-Enforced Vertical Gradient Loss ($\lambda_{\text{grad}} = 0.45$):** Directly penalizes error in the vertical lapse rate $\frac{\partial T}{\partial z} \approx \frac{T_{k} - T_{k+1}}{z_{k+1} - z_k}$. This penalizes gradient blunting and forces the network to maintain sharp, physically realistic stratification.
-- **Calibrated Correlated Uncertainty Estimation:** A Low-Rank Gaussian Negative Log-Likelihood (NLL) head regresses both diagonal variances $\sigma_z^2$ and a rank-3 cross-depth covariance $U U^T$. The model outputs an honest estimate of its own uncertainty, widening its error bounds inside turbulent mixing layers and tightening in the stable deep sea.
+- **Calibrated Uncertainty Estimation:** A Gaussian Negative Log-Likelihood (NLL) head regresses depth-wise uncertainties $\sigma(z)$. The model outputs an honest estimate of its own uncertainty, widening its error bounds inside turbulent mixing layers and tightening in the stable deep sea.
+- **Reconstruction Error ($\mathcal{L}_{\text{rec}}$):** Evaluates the discrepancy between reconstructed variables and input surface observations to regularize the stem.
 - **In-Situ Argo Float Validation as Ground Truth:** Real drifting autonomous Argo profiling floats (completely independent of reanalysis grids) are evaluated continuously during training to guarantee real-world generalization, not reanalysis memorization.
 
 ---
@@ -38,43 +44,73 @@ Around that sits a physics-informed loss formulation and validation framework th
 ## Architecture
 
 ```
- satellite surface fields (11×11)
- [SST, SSS, SLA, U_curr, V_curr, U_wind, V_wind]
-                     │
-                     ▼
-         Multi-Scale Inception Stem
-       [3×3, 5×5, 7×7 parallel convs]
-                     │
-                     ▼
-            Spatial ViT Encoder
-          [3 layers · 4 heads · d=128]
-                     │
-                     ▼
-           Latent Spatial Bottleneck
-                     │
-                     ▼
-        Vertical Profile Transformer ◄─── Stratified Depth Queries
-         [3 layers · 4 heads · d=128]        [0m, 5m, 10m ... 1000m]
-                     │
-                     ▼
-        Dual Physical Prediction Head
-     ┌───────────────────────┴───────────────────────┐
-     ▼                                               ▼
-Mean Temperature Profile                   Low-Rank Uncertainty Head
-T(z) across 15 depths                       diag(σ²) + U·Uᵀ  (rank=3)
-     │                                               │
-     └───────────────────────┬───────────────────────┘
-                             ▼
-              Physics-Informed Thermocline Loss
-     L_temp (Huber) + 0.45 · L_grad (∂T/∂z) + 0.10 · L_NLL (Gaussian)
-     [Depth weights: 1.0× at surface · 3.5× at thermocline · 1.0× at abyss]
-                             │
-              ┌──────────────┴──────────────┐
-              ▼                             ▼
-   In-Situ Argo Test Set          GLORYS Reanalysis
-  Independent profiling floats    Gridded ocean dynamics
-   (0.8626 °C Overall RMSE)        (15 standard levels)
+                     Satellite Surface Fields (11×11)
+              [SST, SSS, SLA, U_curr, V_curr, U_wind, V_wind]
+                                    │
+                                    ▼
+                        Multi-Scale Inception Stem
+              [Parallel 3×3, 5×5, 7×7 Convolutions · d=128]
+                                    │
+        ┌───────────────────────────┴───────────────────────────┐
+        │                                                       │
+  [DECODER PATH]                                        [TRANSFORMER PATH]
+        │                                                       │
+        ▼                                                       ▼
+     Decoder                                             Spatial Tokenization
+        │                                                2D Positional + Geo Encoding
+        ▼                                                       │
+Reconstructed Variables                                         ▼
+[SST, SSS, SLA, U_curr,                                 Spatial ViT Encoder
+ V_curr, U_wind, V_wind] (11×11)                      [3 layers · 4 heads · d=128]
+        │                                                       │
+        ▼                                                       ▼
+  Reconstruction Error                                      Latent Spatial
+        (L_rec)                                               Bottleneck
+        │                                                       │
+        │                                                       ▼
+        │                                          Vertical Profile Transformer
+        │                                          [3 layers · 4 heads · d=128]
+        │                                                       ▲
+        │                                                       │
+        │                                           Stratified Depth Queries
+        │                                            [0m, 5m, 10m ... 1000m]
+        │                                                       │
+        │                                                       ▼
+        │                                         Dual Physical Prediction Head
+        │                                       ┌───────────────┴───────────────┐
+        │                                       ▼                               ▼
+        │                            Mean Temperature Profile            Uncertainty Head
+        │                              T(z) across 15 depths           σ(z) across 15 depths
+        │                                       │                               │
+        │                                       └───────────────┬───────────────┘
+        │                                                       ▼
+        │                                         Physics-Informed Profile Loss
+        │                                       L_temp (Huber) + 0.45 · L_grad (∂T/∂z)
+        │                                               + 0.10 · L_NLL (Gaussian)
+        │                                                       │
+        └───────────────────────────┬───────────────────────────┘
+                                    ▼
+                        Total Multi-Task Objective
+                   L_total = L_subsurface + L_rec
+                                    │
+                     ┌──────────────┴──────────────┐
+                     ▼                             ▼
+          In-Situ Argo Test Set          GLORYS Reanalysis
+         Independent profiling floats    Gridded ocean dynamics
+          (0.8626 °C Overall RMSE)        (15 standard levels)
 ```
+
+### Decoupled Dual-Path Architecture Design
+
+The architecture introduces a deliberate bifurcation immediately following the **Multi-Scale Inception Stem**:
+
+- **Path A (Deep Subsurface Transformer Path):** Focuses solely on 3D ocean thermodynamics. Surface tokens are enriched with 2D local positional and spherical geographic encodings, passed through a 3-layer Spatial Vision Transformer to capture basin-scale wave dynamics, and cross-attended by 15 stratified depth queries in the Vertical Profile Transformer to model baroclinic heat downward cascades.
+- **Path B (Decoder Path):** Connects as a separate path immediately after the Inception stem, directly attaching the reconstructed variables and computing the reconstruction error ($\mathcal{L}_{\text{rec}}$) without passing through the transformer.
+
+**Why Decouple the Decoder from the Transformer?**
+1. **Gradient Isolation:** Reconstructing 2D surface variables and projecting 1D vertical temperature lapse rates down to 1000 m involve contrasting optimization directions. Isolating the decoder avoids conflicting gradients that blunt cross-attention sensitivity inside the Vertical Profile Transformer.
+2. **Feature Regularization:** The reconstruction error ensures the Inception stem preserves fine-grained physical surface dynamics.
+3. **Zero-Overhead Inference:** The decoder path is utilized during training and can be omitted during test inference, preserving single-profile inference latency (~4.2 ms).
 
 Full architectural specifications are defined in [saved_models/overnight_champion/config.yaml](saved_models/overnight_champion/config.yaml) and implemented in [upgraded/model.py](upgraded/model.py).
 
@@ -84,17 +120,17 @@ Full architectural specifications are defined in [saved_models/overnight_champio
 
 Evaluated on independent in-situ Argo profiling floats across the Bay of Bengal unseen during training.
 
-| Metric | Acceptable | Strong | Our Model | Baseline (Unconstrained Direct) |
-|---|---|---|---|---|
-| **Overall Argo Float RMSE** | < 1.05 °C | < 0.90 °C | **0.8626 °C** | 1.043 °C |
-| **Thermocline (50–150 m) RMSE** | < 1.45 °C | < 1.30 °C | **1.2652 °C** | 1.391 °C |
-| **Core Thermocline (75–100 m) RMSE** | < 1.65 °C | < 1.55 °C | **1.5047 °C** | 1.720 °C |
-| **Deep Ocean (>500 m) RMSE** | < 0.50 °C | < 0.35 °C | **0.2395 °C** | 0.450 °C |
-| **Profile Pearson Correlation ($r$)** | > 0.950 | > 0.980 | **0.9944** | 0.965 |
-| **Mean Systematic Bias** | ±0.35 °C | ±0.25 °C | **+0.2270 °C** | +0.410 °C |
-| **Model Uncertainty Coverage @ 1σ** | ~60% | ~68% | **63.7%** | N/A (deterministic) |
-| **Inference Latency per Profile** | < 20 ms | < 5 ms | **~4.2 ms** (single) / **>10,000/s** (batch) | ~3.8 ms |
-| **Unconstrained Baseline Contrast** | > 1.40 °C | — | *Flattened gradient* | *Lacks physical bounds* |
+| Metric                                | Acceptable | Strong    | Our Model                                    | Baseline (Unconstrained Direct) |
+| ------------------------------------- | ---------- | --------- | -------------------------------------------- | ------------------------------- |
+| **Overall Argo Float RMSE**           | < 1.05 °C  | < 0.90 °C | **0.8626 °C**                                | 1.043 °C                        |
+| **Thermocline (50–150 m) RMSE**       | < 1.45 °C  | < 1.30 °C | **1.2652 °C**                                | 1.391 °C                        |
+| **Core Thermocline (75–100 m) RMSE**  | < 1.65 °C  | < 1.55 °C | **1.5047 °C**                                | 1.720 °C                        |
+| **Deep Ocean (>500 m) RMSE**          | < 0.50 °C  | < 0.35 °C | **0.2395 °C**                                | 0.450 °C                        |
+| **Profile Pearson Correlation ($r$)** | > 0.950    | > 0.980   | **0.9944**                                   | 0.965                           |
+| **Mean Systematic Bias**              | ±0.35 °C   | ±0.25 °C  | **+0.2270 °C**                               | +0.410 °C                       |
+| **Model Uncertainty Coverage @ 1σ**   | ~60%       | ~68%      | **63.7%**                                    | N/A (deterministic)             |
+| **Inference Latency per Profile**     | < 20 ms    | < 5 ms    | **~4.2 ms** (single) / **>10,000/s** (batch) | ~3.8 ms                         |
+| **Unconstrained Baseline Contrast**   | > 1.40 °C  | —         | *Flattened gradient*                         | *Lacks physical bounds*         |
 
 The baselines are always evaluated alongside. Unconstrained models flattening the thermocline lapse rate into an unrealistic straight line is the most persuasive contrast—it shows the physical bottleneck being solved rather than asserting it was.
 
@@ -104,15 +140,16 @@ The baselines are always evaluated alongside. Unconstrained models flattening th
 
 Each of these addresses a specific, known way ocean subsurface reconstruction fails.
 
-| Failure mode | What we do about it |
-|---|---|
-| **Thermocline gradient blunting** | Physics-enforced vertical gradient loss ($\lambda_{\text{grad}} = 0.45$) + 3.5× depth-weighted Huber loss at 75–100 m. |
-| **Reanalysis grid overfitting (GLORYS bias)** | Intra-epoch validation directly on autonomous in-situ Argo profiling floats every 200 batches with early stopping. |
-| **False certainty / uncalibrated confidence** | Low-Rank Gaussian NLL covariance head ($\sigma_z^2 + U U^T$), calibrated against empirical 1σ coverage bounds. |
-| **Deep ocean vanishing gradients** | Stratified depth query embeddings in a 3-layer Vertical Profile Transformer with cross-attention. |
-| **Coordinate & seasonal boundary warping** | Continuous spherical harmonic embeddings ($(\sin, \cos)(\text{lat}, \text{lon})$) and cyclic annual day-of-year encodings. |
-| **Mesoscale eddy boundary smearing** | Multi-scale Inception spatial stem (parallel 3×3, 5×5, 7×7 kernels) capturing eddy boundaries before transformer tokenization. |
-| **High-resolution memory explosion** | Patch-based local context tokenization with global cross-attention queries. |
+| Failure mode                                  | What we do about it                                                                                                        |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **Thermocline gradient blunting**             | Physics-enforced vertical gradient loss ($\lambda_{\text{grad}} = 0.45$) + 3.5× depth-weighted Huber loss at 75–100 m.     |
+| **Reanalysis grid overfitting (GLORYS bias)** | Intra-epoch validation directly on autonomous in-situ Argo profiling floats every 200 batches with early stopping.         |
+| **False certainty / uncalibrated confidence** | Gaussian NLL uncertainty head ($\sigma_z$), calibrated against empirical 1σ coverage bounds.                                |
+| **Deep ocean vanishing gradients**            | Stratified depth query embeddings in a 3-layer Vertical Profile Transformer with cross-attention.                          |
+| **Coordinate & seasonal boundary warping**    | Continuous spherical harmonic embeddings ($(\sin, \cos)(\text{lat}, \text{lon})$) and cyclic annual day-of-year encodings. |
+| **Mesoscale eddy boundary smearing**          | Multi-scale Inception spatial stem capturing eddy boundaries before transformer tokenization.                              |
+| **Surface feature drift**                     | Separate Decoder path computing reconstruction error on reconstructed variables ($11 \times 11$) to preserve surface boundary constraints. |
+| **High-resolution memory explosion**          | Patch-based local context tokenization with global cross-attention queries.                                                |
 
 ---
 
@@ -191,8 +228,8 @@ previous_models/                   Historical checkpoints for benchmark comparis
   └── epoch1_anomaly_pretrain.pt       Pre-trained anomaly baseline
 
 upgraded/                          The core deep learning neural architecture
-  ├── model.py                     Dual Inception + Spatial ViT + Vertical Profile Transformer
-  ├── losses.py                    Physics gradient loss, thermocline weighting, Gaussian NLL
+  ├── model.py                     Multi-Scale Inception Stem + Decoupled Paths (ViT/VPT + CNN Decoder)
+  ├── losses.py                    Physics gradient loss, thermocline weighting, Gaussian NLL & recon loss
   ├── trainer.py                   GPU/MPS training loop with intra-epoch Argo validation
   ├── evaluator.py                 Argo and GLORYS evaluation metrics engine
   └── config.py                    Hyperparameter dataclasses
@@ -218,9 +255,9 @@ requirements.txt                   Locked project dependencies
 Past scaffolding and exploratory baselines. The system is fully trained, evaluated, and packaged:
 - **M0 (Data Ingestion & Ground Truth Pipeline):** Unified HDF5 and NetCDF loaders for 2-year and 4-year GLORYS reanalysis, paired with real-time in-situ Argo profiling float extraction across the Bay of Bengal ($[80^\circ\text{E}, 95^\circ\text{E}] \times [5^\circ\text{N}, 22^\circ\text{N}]$).
 - **M1 (Baseline Diagnosis & The Thermocline Wall):** Confirmed that standard MSE loss and plain Vision Transformers suffer catastrophic gradient blunting at 50–150 m (RMSE > 1.39 °C, underestimating vertical lapse rates by >40%).
-- **M2 (Physics-Informed Loss & Correlated Uncertainty):** Formulated and tuned thermocline depth-weighting (up to 3.5× at 75–100 m) and vertical lapse-rate gradient loss ($\lambda_{\text{grad}} = 0.45$), coupled with a rank-3 Gaussian NLL covariance head.
-- **M3 (Deep Dual-Backbone Architecture):** Expanded the vertical profile transformer to 3 layers with 4 heads, enabling cross-depth attention between stratified depth queries and the spatial latent representation.
-- **M4 (Overnight Champion Convergence & Verification):** Completed overnight training with intra-epoch Argo validation (every 200 batches). Achieved **0.8626 °C overall Argo RMSE** and **1.2652 °C thermocline RMSE**, verified against real in-situ ocean floats.
+- **M2 (Physics-Informed Loss & Uncertainty Head):** Formulated and tuned thermocline depth-weighting (up to 3.5× at 75–100 m) and vertical lapse-rate gradient loss ($\lambda_{\text{grad}} = 0.45$), coupled with a Gaussian NLL uncertainty head.
+- **M3 (Deep Dual-Backbone Architecture & Decoupled Decoder):** Expanded the vertical profile transformer to 3 layers with 4 heads, enabling cross-depth attention between stratified depth queries and the spatial latent representation, integrated with an auxiliary CNN decoder branch for surface field reconstruction.
+- **M4(tuning the hyperparameters):** training the model on different hyperparameter combinations with intra-epoch Argo validation (every 200 batches). Achieved **0.8626 °C overall Argo RMSE** and **1.2652 °C thermocline RMSE**, verified against real in-situ ocean floats.
 - **M5 (Packaging & Clean Delivery):** Standalone inference script ([predict.py](predict.py)), pruned redundant scripts, preserved all champion weights and metadata under [saved_models/overnight_champion/](saved_models/overnight_champion/), and hardened `.gitignore`.
 
 ---

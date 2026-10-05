@@ -235,24 +235,6 @@ All evaluation pipelines use headless Matplotlib (`matplotlib.use("Agg")`) to ge
 
 All pre-computed champion plots are stored under [`saved_models/best_model/plots/`](saved_models/best_model/plots/).
 
----
-
-## Tech Stack
-
-| Category | Technology | Usage in Project |
-|---|---|---|
-| **Language** | Python 3.10+ | Entire machine learning pipeline, data loading, inference, and evaluation |
-| **Deep Learning** | PyTorch 2.x | Inception CNN stem, Spatial ViT, Vertical Profile Transformer, custom physics loss |
-| **Optimization** | AdamW, CosineAnnealing | Training convergence with intra-epoch Argo validation and gradient clipping |
-| **Numerics** | NumPy, SciPy | Spherical coordinate projection, Haversine geometry, covariance factor math |
-| **Dataframes** | Pandas | Profiling float metadata wrangling, tabular metric exports (`.csv`) |
-| **Ocean Data I/O** | Xarray, NetCDF4, H5py | Reading autonomous Argo NetCDF floats and multi-gigabyte GLORYS HDF5 datasets |
-| **Configuration** | PyYAML, JSON | YAML configs (`configs/best_model.yaml`), structured metric dumps (`metrics.json`) |
-| **Visualization** | Matplotlib | Automated publication figures ($T(z)$ curves, error maps, uncertainty envelopes) |
-| **Hardware** | MPS / CUDA / CPU | High-throughput GPU training and low-latency inference (~4.2 ms) |
-
----
-
 ## Repository map
 
 ```text

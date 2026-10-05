@@ -160,8 +160,8 @@ def evaluate_glorys_test(
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate Upgraded Model on GLORYS Test Set")
-    parser.add_argument("--checkpoint", type=str, default="saved_models/overnight_champion/model.pt")
-    parser.add_argument("--config", type=str, default="saved_models/overnight_champion/config.yaml")
+    parser.add_argument("--checkpoint", type=str, default="saved_models/best_model/model.pt")
+    parser.add_argument("--config", type=str, default="saved_models/best_model/config.yaml")
     parser.add_argument("--data", "--data-dir", dest="data", type=str, default=None)
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--device", type=str, default="auto")
@@ -173,7 +173,7 @@ def main():
     elif os.path.exists(args.config):
         cfg = load_config(args.config)
     else:
-        cfg = load_config("saved_models/overnight_champion/config.yaml")
+        cfg = load_config("saved_models/best_model/config.yaml")
 
     if args.data:
         sub_samples = os.path.join(args.data, "samples_monthly")

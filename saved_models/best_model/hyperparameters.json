@@ -1,6 +1,6 @@
 {
   "model_identifier": "trial_20_transformer_3_vertical_layers",
-  "checkpoint_file": "saved_models/overnight_champion/model.pt",
+  "checkpoint_file": "saved_models/best_model/model.pt",
   "objective": "Thermocline-Aware Retraining with Enhanced Vertical Coupling",
   "independent_argo_test_rmse": 0.8626,
   "thermocline_50_150m_rmse": 1.2652,

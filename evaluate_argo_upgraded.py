@@ -67,7 +67,7 @@ def run_argo_evaluation_upgraded(
     elif os.path.exists(config_path):
         cfg = load_upgraded_config(config_path)
     else:
-        cfg = load_upgraded_config("saved_models/overnight_champion/config.yaml")
+        cfg = load_upgraded_config("saved_models/best_model/config.yaml")
 
     if hasattr(cfg, "to_dict"):
         cfg_dict = cfg.to_dict()
@@ -231,8 +231,8 @@ def run_argo_evaluation_upgraded(
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate Upgraded Ocean Model Against Argo Floats")
-    parser.add_argument("--checkpoint", type=str, default="saved_models/overnight_champion/model.pt")
-    parser.add_argument("--config", type=str, default="saved_models/overnight_champion/config.yaml")
+    parser.add_argument("--checkpoint", type=str, default="saved_models/best_model/model.pt")
+    parser.add_argument("--config", type=str, default="saved_models/best_model/config.yaml")
     parser.add_argument("--data", "--argo-dir", dest="data", type=str, default=None)
     parser.add_argument("--max-profiles", type=int, default=None)
     parser.add_argument("--output-dir", type=str, default="results/argo_test")

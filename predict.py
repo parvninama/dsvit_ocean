@@ -3,7 +3,7 @@ predict.py - Standalone inference script for Ocean Subsurface Temperature Recons
 
 Usage:
   python predict.py
-  python predict.py --checkpoint saved_models/overnight_champion/model.pt
+  python predict.py --checkpoint saved_models/best_model/model.pt
 """
 from __future__ import annotations
 import os
@@ -20,7 +20,7 @@ from upgraded.model import UpgradedOceanReconstructionModel
 TARGET_DEPTHS_M = [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000]
 
 
-def load_model(checkpoint_path: str = "saved_models/overnight_champion/model.pt", device: torch.device = None):
+def load_model(checkpoint_path: str = "saved_models/best_model/model.pt", device: torch.device = None):
     """Loads model weights, architecture config, and normalization statistics from checkpoint."""
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
@@ -93,7 +93,7 @@ def predict_temperature(
 
 def main():
     parser = argparse.ArgumentParser(description="Ocean Subsurface Temperature Inference")
-    parser.add_argument("--checkpoint", type=str, default="saved_models/overnight_champion/model.pt")
+    parser.add_argument("--checkpoint", type=str, default="saved_models/best_model/model.pt")
     parser.add_argument("--lat", type=float, default=15.0, help="Latitude (°N)")
     parser.add_argument("--lon", type=float, default=85.0, help="Longitude (°E)")
     parser.add_argument("--day", type=int, default=180, help="Day of year (1-365)")

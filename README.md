@@ -112,7 +112,7 @@ The architecture introduces a deliberate bifurcation immediately following the *
 2. **Feature Regularization:** The reconstruction error ensures the Inception stem preserves fine-grained physical surface dynamics.
 3. **Zero-Overhead Inference:** The decoder path is utilized during training and can be omitted during test inference, preserving single-profile inference latency (~4.2 ms).
 
-Full architectural specifications are defined in [saved_models/overnight_champion/config.yaml](saved_models/overnight_champion/config.yaml) and implemented in [upgraded/model.py](upgraded/model.py).
+Full architectural specifications are defined in [saved_models/best_model/config.yaml](saved_models/best_model/config.yaml) and implemented in [upgraded/model.py](upgraded/model.py).
 
 ---
 
@@ -170,9 +170,9 @@ pip install -r requirements.txt
 ```
 
 ### 2. Standalone Single-Profile Inference
-Run inference with the champion model on arbitrary surface inputs:
+Run inference with the best model on arbitrary surface inputs:
 ```bash
-python predict.py --checkpoint saved_models/overnight_champion/model.pt
+python predict.py --checkpoint saved_models/best_model/model.pt
 ```
 Outputs reconstructed temperatures across all 15 depths with 1-sigma uncertainty:
 ```text
@@ -201,14 +201,14 @@ Outputs reconstructed temperatures across all 15 depths with 1-sigma uncertainty
 Run the rigorous in-situ validation harness:
 ```bash
 python evaluate_argo_upgraded.py \
-  --checkpoint saved_models/overnight_champion/model.pt \
+  --checkpoint saved_models/best_model/model.pt \
   --data argo_test_bob_2years/
 ```
 
 ### 4. Evaluate on GLORYS Gridded Reanalysis
 ```bash
 python evaluate_glorys_upgraded.py \
-  --checkpoint saved_models/overnight_champion/model.pt \
+  --checkpoint saved_models/best_model/model.pt \
   --data bob_ocean_dataset_2years/
 ```
 
@@ -217,7 +217,7 @@ python evaluate_glorys_upgraded.py \
 ## Repository map
 
 ```text
-saved_models/overnight_champion/   ★ The frozen champion model & artifacts
+saved_models/best_model/           ★ The frozen best model & artifacts
   ├── model.pt                     ★ PyTorch weights + architecture config + normalization stats
   ├── config.yaml                  Full model and loss configuration
   ├── hyperparameters.json         Exact training hyperparameters, loss weights, depth scalers
@@ -239,13 +239,13 @@ glorys_loader.py                   ★ The canonical GLORYS reanalysis HDF5/NetC
 predict.py                         Clean standalone single-day & batch inference CLI
 evaluate_argo_upgraded.py          Standalone in-situ Argo evaluation pipeline
 evaluate_glorys_upgraded.py        Standalone GLORYS gridded evaluation pipeline
-configs/best_model_champion.yaml   Runnable configuration for the champion architecture
+configs/best_model.yaml            Runnable configuration for the best model architecture
 requirements.txt                   Locked project dependencies
 .gitignore                         Production gitignore excluding raw data & checkpoints
 ```
 
 ### Two structural guarantees, enforced by design:
-1. **Self-Contained Checkpoints:** [predict.py](predict.py) and evaluation pipelines never import from temporary scratch files, training logs, or dead scripts. The champion checkpoint carries its complete configuration and normalization statistics internally.
+1. **Self-Contained Checkpoints:** [predict.py](predict.py) and evaluation pipelines never import from temporary scratch files, training logs, or dead scripts. The best model checkpoint carries its complete configuration and normalization statistics internally.
 2. **Unified Preprocessing Path:** Training, evaluation, and inference share the exact same coordinate spherical projection and variable normalization routines in [argo_loader.py](argo_loader.py) and [glorys_loader.py](glorys_loader.py).
 
 ---
@@ -258,7 +258,7 @@ Past scaffolding and exploratory baselines. The system is fully trained, evaluat
 - **M2 (Physics-Informed Loss & Uncertainty Head):** Formulated and tuned thermocline depth-weighting (up to 3.5× at 75–100 m) and vertical lapse-rate gradient loss ($\lambda_{\text{grad}} = 0.45$), coupled with a Gaussian NLL uncertainty head.
 - **M3 (Deep Dual-Backbone Architecture & Decoupled Decoder):** Expanded the vertical profile transformer to 3 layers with 4 heads, enabling cross-depth attention between stratified depth queries and the spatial latent representation, integrated with an auxiliary CNN decoder branch for surface field reconstruction.
 - **M4(tuning the hyperparameters):** training the model on different hyperparameter combinations with intra-epoch Argo validation (every 200 batches). Achieved **0.8626 °C overall Argo RMSE** and **1.2652 °C thermocline RMSE**, verified against real in-situ ocean floats.
-- **M5 (Packaging & Clean Delivery):** Standalone inference script ([predict.py](predict.py)), pruned redundant scripts, preserved all champion weights and metadata under [saved_models/overnight_champion/](saved_models/overnight_champion/), and hardened `.gitignore`.
+- **M5 (Packaging & Clean Delivery):** Standalone inference script ([predict.py](predict.py)), pruned redundant scripts, preserved all best model weights and metadata under [saved_models/best_model/](saved_models/best_model/), and hardened `.gitignore`.
 
 ---
 

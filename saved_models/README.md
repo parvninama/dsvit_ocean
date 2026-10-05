@@ -20,7 +20,7 @@ This directory contains the 3 primary milestone models preserved for evaluation,
 
 ---
 
-## 3. Overnight Champion Model (`overnight_champion/`)
+## 3. Best Model (`best_model/`)
 - **File:** `model.pt` (SHA256: `d6c63b5c9f2ad7325851cacfa6f080686cc249b683d45127ea0cdfcb7c8993af`)
 - **Configuration:** `config.yaml`
 - **Full Benchmark Metrics:** `metrics.json`

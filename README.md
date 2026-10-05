@@ -174,7 +174,7 @@ Run inference with the best model on arbitrary surface inputs:
 ```bash
 python predict.py --checkpoint saved_models/best_model/model.pt
 ```
-Outputs reconstructed temperatures across all 15 depths with 1-sigma uncertainty:
+Outputs reconstructed temperatures across all 15 depths with 1-sigma uncertainty and automatically generates the visual profile curve:
 ```text
 -----------------------------------------------------------------
    Depth |   Predicted Temp |  1-Sigma Uncertainty
@@ -195,6 +195,14 @@ Outputs reconstructed temperatures across all 15 depths with 1-sigma uncertainty
     700m |           8.30 °C |               0.20 °C
    1000m |           8.39 °C |               0.20 °C
 -----------------------------------------------------------------
+
+  [Plot] Plotted temperature profile curve saved to: predicted_profile.png
+```
+
+View the generated visual curve with uncertainty shading:
+```bash
+open predicted_profile.png
+# (To specify a custom output path, pass --plot my_plot.png; to disable, pass --plot none)
 ```
 
 ### 3. Evaluate Against Independent In-Situ Argo Floats
@@ -212,6 +220,37 @@ python evaluate_glorys_upgraded.py \
   --data bob_ocean_dataset_2years/
 ```
 
+### 5. Visualization & Diagnostic Plots
+All evaluation pipelines use headless Matplotlib (`matplotlib.use("Agg")`) to generate and save 22 publication-grade oceanographic figures:
+
+| Generated Plot | Description |
+|---|---|
+| **`predicted_profile.png`** | Vertical temperature profile curve $T(z)$ from single-profile inference with shaded $1\sigma$ uncertainty envelope. |
+| **`example_profiles.png`** | 6-panel true vs. predicted profiles with shaded uncertainty across varied Bay of Bengal regimes. |
+| **`rmse_vs_depth.png`** / **`mae_vs_depth.png`** | Layer-by-layer error curves from surface (0 m) down to abyss (1000 m). |
+| **`bias_vs_depth.png`** | Systematic temperature bias showing minimal drift across depths. |
+| **`coverage_vs_depth.png`** | Empirical $1\sigma$ (68%) and $2\sigma$ (95%) uncertainty calibration curves. |
+| **`geographic_profile_rmse.png`** | Geographic map of Argo float locations across the Bay of Bengal colored by RMSE. |
+| **`failure_profiles.png`** | Detailed vertical profile comparisons for the highest-error cases to diagnose boundary conditions. |
+
+All pre-computed champion plots are stored under [`saved_models/best_model/plots/`](saved_models/best_model/plots/).
+
+---
+
+## Tech Stack
+
+| Category | Technology | Usage in Project |
+|---|---|---|
+| **Language** | Python 3.10+ | Entire machine learning pipeline, data loading, inference, and evaluation |
+| **Deep Learning** | PyTorch 2.x | Inception CNN stem, Spatial ViT, Vertical Profile Transformer, custom physics loss |
+| **Optimization** | AdamW, CosineAnnealing | Training convergence with intra-epoch Argo validation and gradient clipping |
+| **Numerics** | NumPy, SciPy | Spherical coordinate projection, Haversine geometry, covariance factor math |
+| **Dataframes** | Pandas | Profiling float metadata wrangling, tabular metric exports (`.csv`) |
+| **Ocean Data I/O** | Xarray, NetCDF4, H5py | Reading autonomous Argo NetCDF floats and multi-gigabyte GLORYS HDF5 datasets |
+| **Configuration** | PyYAML, JSON | YAML configs (`configs/best_model.yaml`), structured metric dumps (`metrics.json`) |
+| **Visualization** | Matplotlib | Automated publication figures ($T(z)$ curves, error maps, uncertainty envelopes) |
+| **Hardware** | MPS / CUDA / CPU | High-throughput GPU training and low-latency inference (~4.2 ms) |
+
 ---
 
 ## Repository map
@@ -221,7 +260,9 @@ saved_models/best_model/           ★ The frozen best model & artifacts
   ├── model.pt                     ★ PyTorch weights + architecture config + normalization stats
   ├── config.yaml                  Full model and loss configuration
   ├── hyperparameters.json         Exact training hyperparameters, loss weights, depth scalers
-  └── metrics.json                 In-situ Argo test metrics across all 15 depths
+  ├── metrics.json                 In-situ Argo test metrics across all 15 depths
+  ├── plots/                       22 publication-grade diagnostic plots (curves, maps, uncertainty)
+  └── report.md                    Detailed scientific experiment report
 
 previous_models/                   Historical checkpoints for benchmark comparison
   ├── bay_of_bengal_2year_baseline.pt  Baseline direct prediction model

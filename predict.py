@@ -91,12 +91,40 @@ def predict_temperature(
     return pred_temp, uncertainty
 
 
+def plot_profile(depths: list, temps: np.ndarray, uncs: np.ndarray, lat: float, lon: float, day: int, output_path: str = "predicted_profile.png"):
+    """Plots and saves the reconstructed ocean vertical temperature curve with uncertainty shading."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(6, 8), dpi=120)
+    ax.plot(temps, depths, "o-", color="#0055aa", linewidth=2.2, markersize=5.5, label=r"Predicted $T(z)$")
+    ax.fill_betweenx(depths, temps - uncs, temps + uncs, color="#0055aa", alpha=0.22, label=r"Calibrated $1\sigma$ Uncertainty")
+
+    # Vertical axis: depth decreases from up (1000m) to down (0m)
+    ax.set_ylim(-20, max(depths) + 50)
+    ax.set_xlabel("Temperature (°C)", fontsize=11, fontweight="bold")
+    ax.set_ylabel("Depth (m)", fontsize=11, fontweight="bold")
+    ax.set_title(f"Reconstructed Ocean Thermal Profile\nLocation: {lat:.2f}°N, {lon:.2f}°E | Day of Year: {day}", fontsize=11, pad=12)
+
+    # Highlight thermocline bottleneck layer
+    ax.axhspan(50, 150, color="#ff9900", alpha=0.15, label="Thermocline Layer (50–150m)")
+
+    ax.grid(True, linestyle="--", alpha=0.6)
+    ax.legend(loc="upper right", framealpha=0.92, fontsize=10)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    plt.close()
+    print(f"  [Plot] Plotted temperature profile curve saved to: {output_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Ocean Subsurface Temperature Inference")
     parser.add_argument("--checkpoint", type=str, default="saved_models/best_model/model.pt")
     parser.add_argument("--lat", type=float, default=15.0, help="Latitude (°N)")
     parser.add_argument("--lon", type=float, default=85.0, help="Longitude (°E)")
     parser.add_argument("--day", type=int, default=180, help="Day of year (1-365)")
+    parser.add_argument("--plot", type=str, default="predicted_profile.png", help="Filename to save the plotted temperature curve (default: predicted_profile.png)")
     args = parser.parse_args()
 
     print("\n" + "=" * 65)
@@ -123,6 +151,9 @@ def main():
     for d, t, u in zip(TARGET_DEPTHS_M, temps, uncs):
         print(f"{d:>7}m | {t:>14.2f} °C | {u:>18.2f} °C")
     print("-" * 65 + "\n")
+
+    if args.plot and args.plot.lower() not in ("none", "false", "0", ""):
+        plot_profile(TARGET_DEPTHS_M, temps, uncs, args.lat, args.lon, args.day, output_path=args.plot)
 
 
 if __name__ == "__main__":
